@@ -1,0 +1,101 @@
+Absolutely! Here's a **complete `docker-compose.yml` file** that fully sets up **SonarQube 9.9.0 + PostgreSQL 13**, including all the configuration you’ve previously worked through.
+
+---
+
+### 📄 **`docker-compose.yml` (Save in `sonarqube-docker` folder)**
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: sonardb
+    restart: always
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonardb_data:/var/lib/postgresql/data
+    networks:
+      - sonarnet
+
+  sonarqube:
+    image: sonarqube:9.9.0-community
+    container_name: sonarqube
+    depends_on:
+      - db
+    restart: always
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - sonarnet
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+volumes:
+  sonardb_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+networks:
+  sonarnet:
+```
+
+---
+
+### 📝 Save & Use It
+
+1. **Create folder:**
+
+   ```bash
+   mkdir sonarqube-docker && cd sonarqube-docker
+   ```
+
+2. **Create the file:**
+
+   ```bash
+   nano docker-compose.yml
+   ```
+
+3. **Paste the contents above**, then save (`Ctrl+O`, `Enter`, `Ctrl+X`)
+
+4. **Start services:**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+---
+
+### ✅ Post-Setup Notes
+
+* URL to access: `http://<your-server-ip>:9000`
+* Login: `admin` / `admin`
+* PostgreSQL data and SonarQube files are stored in Docker volumes
+* System ulimit is set to support Elasticsearch
+* Ensure host kernel setting is tuned:
+
+  ```bash
+  sudo sysctl -w vm.max_map_count=262144
+  ```
+
+---
+
+Let me know if you also want:
+
+* A shell script to set everything up automatically
+* Reverse proxy with HTTPS
+* Backup and restore instructions
