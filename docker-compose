@@ -1,5 +1,5 @@
 Absolutely! Here's a **complete `docker-compose.yml` file** that fully sets up **SonarQube 9.9.0 + PostgreSQL 13**, including all the configuration you’ve previously worked through.
-
+1st install docker-compose 
 ---
 
 ### 📄 **`docker-compose.yml` (Save in `sonarqube-docker` folder)**
