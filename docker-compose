@@ -150,6 +150,17 @@ Defines **containers** you want to run.
       POSTGRES_PASSWORD: sonar
       POSTGRES_DB: sonarqube
 ```
+Ye 3 variables milke yeh ensure karte hain ki jab PostgreSQL container start ho:
+
+sonarqube naam ka ek database ban jaye.
+
+sonar naam ka user ban jaye.
+
+Us user ko sonarqube database ka access ho jaye with password sonar.
+
+👉 Ye settings SonarQube ko PostgreSQL se connect karne ke liye zaroori hoti hain, tabhi wo apna data waha store kar payega.
+
+
 
 * Sets environment variables required by PostgreSQL to create:
 
@@ -164,14 +175,32 @@ Defines **containers** you want to run.
 
 * **Persistent storage** so data is saved outside the container.
   Even if the container is removed, your database data remains.
+PostgreSQL ka sara data (tables, schemas, etc.) /var/lib/postgresql/data me store hota hai.
+
+Hum is path ko sonardb_data volume se bind kar rahe hain, jisse:
+
+Data container ke delete hone ke baad bhi safe rahe.
+
+Agar container dobara banaya gaya to data lost na ho.
+
+Volume host system me rehta hai, isliye persistence milega.
+
+=======================================================
 
 ```yaml
     networks:
       - sonarnet
 ```
 
-* Puts the container on a **custom network** (`sonarnet`) for communication with other services.
+*🔍 Iska Matlab aur Purpose:
+Docker containers ek dusre se network pe communicate kar sakte hain, lekin uske liye unka same network me hona zaroori hai.
 
+Jab aap sonarnet network create karte ho aur dono containers (PostgreSQL aur SonarQube) usme add karte ho, to:
+
+SonarQube container db (PostgreSQL) container ko uske container name se access kar sakta hai, jaise:
+ 
+SONARQUBE_JDBC_URL=jdbc:postgresql://db:5432/sonarqube
+==========================================================================
 ---
 
 ### 2. **sonarqube (Main Application)**
@@ -213,6 +242,11 @@ Defines **containers** you want to run.
       SONAR_JDBC_PASSWORD: sonar
       SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
 ```
+Ye SonarQube container ko batate hain:
+
+"Tu jab PostgreSQL se connect karega, to kis username/password se karega, aur kis database ko access karega?"
+
+=======================================================================
 
 * Configures SonarQube to connect to the PostgreSQL DB using JDBC.
 
@@ -222,9 +256,13 @@ Defines **containers** you want to run.
       - sonarqube_extensions:/opt/sonarqube/extensions
       - sonarqube_logs:/opt/sonarqube/logs
 ```
-
-* **Persists important directories** (data, plugins/extensions, logs) across restarts.
-
+Ye lines SonarQube container ke important folders ko Docker volumes ke sath connect karti hain —
+taaki data safe rahe even if container delete ho jaye.
+Folder	Use	Connect kyu karte hain?
+/opt/sonarqube/data	                                                               🔒 Data persist ke liye
+/opt/sonarqube/extensions                                                      🔌 Plugin baar-baar install na karna pade
+/opt/sonarqube/logs	                                                            📄 Debugging aur monitoring ke liye
+=====================================================================================
 ```yaml
     ulimits:
       nofile:
@@ -232,8 +270,59 @@ Defines **containers** you want to run.
         hard: 65536
 ```
 
-* Sets the **maximum number of open files**.
-  Required by SonarQube for performance and stability.
+🧠 Pehle samjho: ulimits kya hota hai?
+ulimits ka matlab hota hai:
+
+"Ek process ko system ke kitne resources use karne ki permission hai"
+
+Isme CPU, memory, open files, etc. aate hain.
+
+🔍 nofile kya hai?
+nofile ka matlab:
+
+"Ek process ek time me kitne open files (ya sockets, ya file descriptors) rakh sakta hai"
+
+SonarQube jaise apps ko:
+
+Bahut saare users handle karne hote hain
+
+Har user ke liye multiple file descriptors (logs, DB sockets, analysis files, etc.) open hote hain
+
+🔢 soft aur hard ka matlab:
+Type	Meaning
+soft	Normal limit – jitna default allow hoga
+hard	Maximum limit – user isse zyada set nahi kar sakta
+
+❗ Default nofile limit Linux me kaafi low hoti hai (~1024 ya 4096), jo SonarQube me errors de sakti hai:
+❌ "too many open files"
+
+❌ Crash on heavy load
+
+✅ Isiliye hum likhte hain:
+yaml
+Copy
+Edit
+ulimits:
+  nofile:
+    soft: 65536
+    hard: 65536
+Yani:
+
+“SonarQube container ko allow karo ki ek time me 65,536 files/sockets open kar sake — normal aur max dono limit me.”
+
+📌 In short:
+Field	Purpose
+ulimits	Docker container ke resource limits define karta hai
+nofile	Kitne files/sockets ek saath open rakh sakta hai
+65536	High-performance apps ke liye recommended limit
+
+🎯 Final line:
+Ye setting SonarQube container ko crash hone se bachati hai jab bahut saare users ya analysis ek saath chal rahe ho.
+
+Chahe to main ek test dikha sakta ho jisme ulimit low ho to SonarQube crash karta hai, aur high ho to stable chalta hai.
+
+======================================================================================================================
+
 
 ---
 
